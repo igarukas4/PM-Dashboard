@@ -3,10 +3,9 @@ import { getProjects, addProject, deleteProject } from '../data/store.ts'
 
 interface Props {
   onSelectProject: (id: string) => void
-  refreshKey: number
 }
 
-export default function ProjectList({ onSelectProject, refreshKey }: Props) {
+export default function ProjectList({ onSelectProject }: Props) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
 

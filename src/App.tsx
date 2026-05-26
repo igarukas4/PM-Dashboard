@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useLocalStorage } from './hooks/useLocalStorage.ts'
 import {
   initStore,
@@ -17,13 +17,11 @@ export default function App() {
   }>('pm-dashboard', { projects: [], tasks: [] })
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
-  const [refreshKey, setRefreshKey] = useState(0)
 
   // Init store with saved data on mount
   useEffect(() => {
     initStore(savedData, () => {
       setSavedData({ projects: getProjects(), tasks: getAllTasks() })
-      setRefreshKey((k) => k + 1)
     })
   }, [])
 
@@ -66,13 +64,11 @@ export default function App() {
             <AddTaskForm projectId={selectedProject.id} />
             <TaskTable
               projectId={selectedProject.id}
-              refreshKey={refreshKey}
             />
           </div>
         ) : (
           <ProjectList
             onSelectProject={setSelectedProjectId}
-            refreshKey={refreshKey}
           />
         )}
       </div>

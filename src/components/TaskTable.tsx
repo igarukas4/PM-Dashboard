@@ -4,7 +4,6 @@ import type { Task, TaskStatus, TaskPriority } from '../types.ts'
 
 interface Props {
   projectId: string
-  refreshKey: number
 }
 
 const statusColors: Record<TaskStatus, string> = {
@@ -19,7 +18,7 @@ const priorityColors: Record<TaskPriority, string> = {
   'high': 'bg-red-100 text-red-700',
 }
 
-export default function TaskTable({ projectId, refreshKey }: Props) {
+export default function TaskTable({ projectId }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState('')
   const [editStatus, setEditStatus] = useState<TaskStatus>('todo')
