@@ -1,22 +1,42 @@
 import { useState } from 'react'
-import { getProjects, addProject, deleteProject } from '../data/store.ts'
+import { addProject, deleteProject } from '../data/store.ts'
+import type { Project } from '../types.ts'
 
 interface Props {
+  projects: Project[]
   onSelectProject: (id: string) => void
+  onRefresh: () => void
 }
 
-export default function ProjectList({ onSelectProject }: Props) {
+export default function ProjectList({ projects, onSelectProject, onRefresh }: Props) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const [adding, setAdding] = useState(false)
 
-  const projects = getProjects()
-
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
-    addProject(name.trim(), description.trim())
-    setName('')
-    setDescription('')
+    setAdding(true)
+    try {
+      await addProject(name.trim(), description.trim())
+      setName('')
+      setDescription('')
+      onRefresh()
+    } catch (err) {
+      console.error('Failed to add project:', err)
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  const handleDelete = async (id: string, projectName: string) => {
+    if (!confirm(`Delete "${projectName}"?`)) return
+    try {
+      await deleteProject(id)
+      onRefresh()
+    } catch (err) {
+      console.error('Failed to delete project:', err)
+    }
   }
 
   return (
@@ -37,9 +57,10 @@ export default function ProjectList({ onSelectProject }: Props) {
         />
         <button
           type="submit"
-          className="px-5 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
+          disabled={adding}
+          className="px-5 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors cursor-pointer disabled:opacity-50"
         >
-          + Add Project
+          {adding ? 'Adding...' : '+ Add Project'}
         </button>
       </form>
 
@@ -62,7 +83,7 @@ export default function ProjectList({ onSelectProject }: Props) {
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
-                    if (confirm(`Delete "${p.name}"?`)) deleteProject(p.id)
+                    handleDelete(p.id, p.name)
                   }}
                   className="text-gray-300 hover:text-red-500 transition-colors text-lg cursor-pointer opacity-0 group-hover:opacity-100"
                   title="Delete project"

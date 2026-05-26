@@ -4,17 +4,27 @@ import type { TaskPriority } from '../types.ts'
 
 interface Props {
   projectId: string
+  onTaskAdded: () => void
 }
 
-export default function AddTaskForm({ projectId }: Props) {
+export default function AddTaskForm({ projectId, onTaskAdded }: Props) {
   const [title, setTitle] = useState('')
   const [priority, setPriority] = useState<TaskPriority>('medium')
+  const [adding, setAdding] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim()) return
-    addTask(title.trim(), projectId, priority)
-    setTitle('')
+    setAdding(true)
+    try {
+      await addTask(title.trim(), projectId, priority)
+      setTitle('')
+      onTaskAdded()
+    } catch (err) {
+      console.error('Failed to add task:', err)
+    } finally {
+      setAdding(false)
+    }
   }
 
   return (
@@ -36,9 +46,10 @@ export default function AddTaskForm({ projectId }: Props) {
       </select>
       <button
         type="submit"
-        className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
+        disabled={adding}
+        className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors cursor-pointer disabled:opacity-50"
       >
-        + Add Task
+        {adding ? 'Adding...' : '+ Add Task'}
       </button>
     </form>
   )

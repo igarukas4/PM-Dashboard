@@ -1,9 +1,16 @@
 import { useState } from 'react'
-import { getTasks, updateTask, deleteTask } from '../data/store.ts'
+import { updateTask, deleteTask } from '../data/store.ts'
 import type { Task, TaskStatus, TaskPriority } from '../types.ts'
 
 interface Props {
-  projectId: string
+  tasks: Task[]
+  onRefresh: () => void
+}
+
+const statusLabels: Record<TaskStatus, string> = {
+  'todo': 'To Do',
+  'in-progress': 'In Progress',
+  'done': 'Done',
 }
 
 const statusColors: Record<TaskStatus, string> = {
@@ -18,13 +25,12 @@ const priorityColors: Record<TaskPriority, string> = {
   'high': 'bg-red-100 text-red-700',
 }
 
-export default function TaskTable({ projectId }: Props) {
+export default function TaskTable({ tasks, onRefresh }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState('')
   const [editStatus, setEditStatus] = useState<TaskStatus>('todo')
   const [editPriority, setEditPriority] = useState<TaskPriority>('medium')
-
-  const tasks = getTasks(projectId)
+  const [saving, setSaving] = useState(false)
 
   const startEdit = (task: Task) => {
     setEditingId(task.id)
@@ -33,18 +39,36 @@ export default function TaskTable({ projectId }: Props) {
     setEditPriority(task.priority)
   }
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (!editingId || !editTitle.trim()) return
-    updateTask(editingId, {
-      title: editTitle.trim(),
-      status: editStatus,
-      priority: editPriority,
-    })
-    setEditingId(null)
+    setSaving(true)
+    try {
+      await updateTask(editingId, {
+        title: editTitle.trim(),
+        status: editStatus,
+        priority: editPriority,
+      })
+      setEditingId(null)
+      onRefresh()
+    } catch (err) {
+      console.error('Failed to update task:', err)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const cancelEdit = () => {
     setEditingId(null)
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this task?')) return
+    try {
+      await deleteTask(id)
+      onRefresh()
+    } catch (err) {
+      console.error('Failed to delete task:', err)
+    }
   }
 
   if (tasks.length === 0) {
@@ -103,8 +127,16 @@ export default function TaskTable({ projectId }: Props) {
                     </select>
                   </td>
                   <td className="py-2 px-4 text-right">
-                    <button onClick={saveEdit} className="text-green-600 hover:text-green-800 text-sm font-medium mr-3 cursor-pointer">Save</button>
-                    <button onClick={cancelEdit} className="text-gray-400 hover:text-gray-600 text-sm cursor-pointer">Cancel</button>
+                    <button
+                      onClick={saveEdit}
+                      disabled={saving}
+                      className="text-green-600 hover:text-green-800 text-sm font-medium mr-3 cursor-pointer disabled:opacity-50"
+                    >
+                      {saving ? 'Saving...' : 'Save'}
+                    </button>
+                    <button onClick={cancelEdit} className="text-gray-400 hover:text-gray-600 text-sm cursor-pointer">
+                      Cancel
+                    </button>
                   </td>
                 </>
               ) : (
@@ -112,7 +144,7 @@ export default function TaskTable({ projectId }: Props) {
                   <td className="py-3 px-4 text-gray-800">{task.title}</td>
                   <td className="py-3 px-4">
                     <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[task.status]}`}>
-                      {task.status === 'in-progress' ? 'In Progress' : task.status.charAt(0).toUpperCase() + task.status.slice(1)}
+                      {statusLabels[task.status]}
                     </span>
                   </td>
                   <td className="py-3 px-4">
@@ -122,7 +154,7 @@ export default function TaskTable({ projectId }: Props) {
                   </td>
                   <td className="py-3 px-4 text-right">
                     <button onClick={() => startEdit(task)} className="text-blue-500 hover:text-blue-700 text-sm mr-3 cursor-pointer">Edit</button>
-                    <button onClick={() => { if (confirm('Delete this task?')) deleteTask(task.id) }} className="text-red-400 hover:text-red-600 text-sm cursor-pointer">Delete</button>
+                    <button onClick={() => handleDelete(task.id)} className="text-red-400 hover:text-red-600 text-sm cursor-pointer">Delete</button>
                   </td>
                 </>
               )}

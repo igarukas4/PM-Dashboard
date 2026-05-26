@@ -1,33 +1,61 @@
-import { useState, useEffect } from 'react'
-import { useLocalStorage } from './hooks/useLocalStorage.ts'
-import {
-  initStore,
-  getProjects,
-  getAllTasks,
-} from './data/store.ts'
+import { useState, useEffect, useCallback } from 'react'
+import { getProjects, getTasks } from './data/store.ts'
 import type { Project, Task } from './types.ts'
 import ProjectList from './components/ProjectList.tsx'
 import AddTaskForm from './components/AddTaskForm.tsx'
 import TaskTable from './components/TaskTable.tsx'
 
 export default function App() {
-  const [savedData, setSavedData] = useLocalStorage<{
-    projects: Project[]
-    tasks: Task[]
-  }>('pm-dashboard', { projects: [], tasks: [] })
-
+  const [projects, setProjects] = useState<Project[]>([])
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [loading, setLoading] = useState(true)
+  const [refreshKey, setRefreshKey] = useState(0)
 
-  // Init store with saved data on mount
-  useEffect(() => {
-    initStore(savedData, () => {
-      setSavedData({ projects: getProjects(), tasks: getAllTasks() })
-    })
+  const loadProjects = useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = await getProjects()
+      setProjects(data)
+    } catch (err) {
+      console.error('Failed to load projects:', err)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
-  const selectedProject = savedData.projects.find(
-    (p) => p.id === selectedProjectId
-  )
+  const loadTasks = useCallback(async (projectId: string) => {
+    try {
+      const data = await getTasks(projectId)
+      setTasks(data)
+    } catch (err) {
+      console.error('Failed to load tasks:', err)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadProjects()
+  }, [loadProjects, refreshKey])
+
+  useEffect(() => {
+    if (selectedProjectId) {
+      loadTasks(selectedProjectId)
+    }
+  }, [selectedProjectId, loadTasks, refreshKey])
+
+  const handleRefresh = useCallback(() => {
+    setRefreshKey((k) => k + 1)
+  }, [])
+
+  const selectedProject = projects.find((p) => p.id === selectedProjectId)
+
+  if (loading && projects.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-gray-400 text-lg">Loading...</p>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -61,14 +89,20 @@ export default function App() {
         {/* Content */}
         {selectedProject ? (
           <div>
-            <AddTaskForm projectId={selectedProject.id} />
-            <TaskTable
+            <AddTaskForm
               projectId={selectedProject.id}
+              onTaskAdded={handleRefresh}
+            />
+            <TaskTable
+              tasks={tasks}
+              onRefresh={handleRefresh}
             />
           </div>
         ) : (
           <ProjectList
+            projects={projects}
             onSelectProject={setSelectedProjectId}
+            onRefresh={handleRefresh}
           />
         )}
       </div>
